@@ -3,4 +3,4 @@ echo "*** starting sdm230device ***"
 ## export PYTHONMALLOCSTATS=1
 exec 2>&1
 exec /data/sdm230device/main.py 
-# -s /dev/ttyUSB0 -r 9600
+# -s /dev/ttyACM1 -r 9600

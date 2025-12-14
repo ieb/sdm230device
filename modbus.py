@@ -144,26 +144,30 @@ class ModbusRTUSerialServer(object):
     def handle(self, threaded: bool = False) -> None:
         #try:
         self.datastore.checkInit()
-        log.debug(f'Try read {self.serial}')
         data = None
-        if threaded:
-            if self.serial:
-                data = self.serial.read(1024)
-        else:
-            if self.serial:
-                if self.serial.in_waiting > 0:
-                    # only read what is available to avoid blocking.
-                    data = self.serial.read(self.serial.in_waiting)
+        if self.serial:
+            if self.serial.in_waiting > 0:
+                log.debug(f'Try read {self.serial}')
+                # only read what is available to avoid blocking.
+                data = self.serial.read(self.serial.in_waiting)
+            else:
+                time.sleep(0.2)
 
         if data:
             log.debug(f'Got data {data}')
             now = time.time()
             if (now - self.last_frame_end) > 1:
                 # last data base > 1s ago, reset the frame
+                log.debug('Frame timed out, resetting')
                 self.framer.resetFrame()
             self.last_frame_end = now
-            self.framer.processIncomingPacket(data, self.respond,
-                                          self.unit, single=True)
+            while True:
+                self.framer.processIncomingPacket(data, self.respond,
+                                              self.unit, single=True)
+                if not self.framer.isFrameReady():
+                    break
+                data = bytes()
+
         #except Exception as msg:
         #    # Since we only have a single socket, we cannot exit
         #    # Clear frame buffer
@@ -195,6 +199,7 @@ class ModbusRTUSerialServer(object):
             now = time.time()
             end_silent = self.last_frame_end + self.silent_time
             if now < end_silent:
+                log.debug('sleep before end')
                 time.sleep(end_silent - now)
 
             self.serial.write(packet)

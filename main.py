@@ -144,7 +144,7 @@ def main():
 
     tty=None
     if args.serial:
-        tty = os.path.basename(args.serial)
+        tty = args.serial 
     client = Client(tty, args.rate)
     client.init()
 
