@@ -121,6 +121,8 @@ class ModbusRTUSerialServer(object):
         :param timeout: The timeout to use for the serial device
         """
         self.unit = unit
+        self.dataCounter = 0
+        self.nodataCounter = 0
         # datacontext implements 
         self.datastore = datastore
         self.last_frame_end = time.time()
@@ -145,15 +147,20 @@ class ModbusRTUSerialServer(object):
         #try:
         self.datastore.checkInit()
         data = None
-        if self.serial:
-            if self.serial.in_waiting > 0:
+        if threaded:
+            if self.serial:
                 log.debug(f'Try read {self.serial}')
-                # only read what is available to avoid blocking.
-                data = self.serial.read(self.serial.in_waiting)
-            else:
-                time.sleep(0.2)
+                #  Minimum valid command is 8 bytes, wait 1s for that to arrive
+                data = self.serial.read(8)
+        else:
+            if self.serial:
+                if self.serial.in_waiting > 0:
+                    # only read what is available to avoid blocking.
+                    data = self.serial.read(self.serial.in_waiting)
 
         if data:
+            self.dataCounter = self.dataCounter + 1
+            log.debug(f'Ratio {self.nodataCounter}:{self.dataCounter} {len(data)}')
             log.debug(f'Got data {data}')
             now = time.time()
             if (now - self.last_frame_end) > 1:
@@ -167,6 +174,8 @@ class ModbusRTUSerialServer(object):
                 if not self.framer.isFrameReady():
                     break
                 data = bytes()
+        else:
+            self.nodataCounter = self.nodataCounter + 1
 
         #except Exception as msg:
         #    # Since we only have a single socket, we cannot exit
